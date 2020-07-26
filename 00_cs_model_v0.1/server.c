@@ -7,10 +7,19 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <signal.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include "wrap.h"
 
 #define SERV_PORT	8888
 #define SERV_IP    	"127.0.0.1"
+
+void wait_child(int signo)
+{
+    while(waitpid(0, NULL, WNOHANG) > 0);   //考虑多个子进程同时结束的情况
+    return;
+}
 
 int main(void)
 {
@@ -55,6 +64,7 @@ int main(void)
 	else	//父进程
 	{
 	    close(cfd);
+	    signal(SIGCHLD, wait_child);
 	}
     }
     if(pid == 0)
@@ -68,6 +78,7 @@ int main(void)
 		buf[i] = toupper(buf[i]);
 	    }
 	    Write(cfd, buf, len);
+	    Write(STDOUT_FILENO, buf, len); //服务器端将客户端的输入转换后打印到屏幕
 	}
 	close(cfd);
     }

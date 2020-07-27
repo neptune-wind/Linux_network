@@ -25,13 +25,16 @@ int main(void)
 {
     pid_t pid;
     int sfd, cfd;
-    int len, i;
+    int len, i, opt;
     char buf[BUFSIZ], clie_IP[BUFSIZ];
 
     struct sockaddr_in serv_addr, clie_addr;
     socklen_t clie_addr_len;
 
     sfd = Socket(AF_INET, SOCK_STREAM, 0);
+    
+    opt = 1;
+    setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
     bzero(&serv_addr, sizeof(serv_addr));
 

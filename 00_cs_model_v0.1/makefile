@@ -1,10 +1,12 @@
 src = $(wildcard *.c)
 obj = $(patsubst %.c, %.o, $(src))
 
-all: server client
+all: server_p server_t client
 
-server: server.o wrap.o
-	gcc server.o wrap.o -o server.out
+server_p: server_p.o wrap.o
+	gcc server_p.o wrap.o -o server_p.out
+server_t: server_t.o wrap.o
+	gcc server_t.o wrap.o -o server_t.out -pthread
 client: client.o wrap.o
 	gcc client.o wrap.o -o client.out
 
@@ -13,5 +15,5 @@ client: client.o wrap.o
 
 .PHONY:clean all
 clean:
-	-rm -rf server.out client.out $(obj)
+	-rm -rf server_p.out client.out $(obj)
 

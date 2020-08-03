@@ -13,6 +13,10 @@ server_epoll: server_epoll.o wrap.o
 	gcc server_epoll.o wrap.o -o server_epoll.out
 client: client.o wrap.o
 	gcc client.o wrap.o -o client.out
+server_epoll_nonblock: server_epoll_nonblock.o wrap.o
+	gcc server_epoll_nonblock.o wrap.o -o server_epoll_nonblock.out
+client_epoll_nonblock: client_epoll_nonblock.o wrap.o
+	gcc client_epoll_nonblock.o wrap.o -o client_epoll_nonblock.out	
 
 %.o:%.c
 	gcc -c $< -o $@ -Wall

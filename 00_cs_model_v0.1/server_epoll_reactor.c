@@ -14,7 +14,7 @@
 
 #define MAX_EVENTS  1024                                    //监听上限数
 #define BUFLEN 4096
-#define SERV_PORT   8080
+#define SERV_PORT   8888
 
 void recvdata(int fd, int events, void *arg);
 void senddata(int fd, int events, void *arg);
@@ -35,9 +35,12 @@ struct myevent_s {
 int g_efd;                                                  //全局变量, 保存epoll_create返回的文件描述符
 struct myevent_s g_events[MAX_EVENTS+1];                    //自定义结构体类型数组. +1-->listen fd
 
-
+void eventclear(struct myevent_s *ev)
+{
+    memset(ev, 0, sizeof(struct myevent_s));
+    return;
+}
 /*将结构体 myevent_s 成员变量 初始化*/
-
 void eventset(struct myevent_s *ev, int fd, void (*call_back)(int, int, void *), void *arg)
 {
     ev->fd = fd;
@@ -45,7 +48,7 @@ void eventset(struct myevent_s *ev, int fd, void (*call_back)(int, int, void *),
     ev->events = 0;
     ev->arg = arg;
     ev->status = 0;
-    //memset(ev->buf, 0, sizeof(ev->buf));
+    //memset(ev->buf, 0, sizeof(ev->buf));  //如果不屏蔽，将导致EPOLLIN转为EPOLLOUT时buf数据丢失，无法写入cfd
     //ev->len = 0;
     ev->last_active = time(NULL);                       //调用eventset函数的时间
 
@@ -156,10 +159,12 @@ void recvdata(int fd, int events, void *arg)
 
     } else if (len == 0) {
         close(ev->fd);
+	eventclear(ev);
         /* ev-g_events 地址相减得到偏移元素位置 */
         printf("[fd=%d] pos[%ld], closed\n", fd, ev-g_events);
     } else {
         close(ev->fd);
+	eventclear(ev);
         printf("recv[fd=%d] error[%d]:%s\n", fd, errno, strerror(errno));
     }
 
@@ -185,8 +190,9 @@ void senddata(int fd, int events, void *arg)
         eventadd(g_efd, EPOLLIN, ev);                       //从新添加到红黑树上， 设为监听读事件
 
     } else {
-        close(ev->fd);                                      //关闭链接
         eventdel(g_efd, ev);                                //从红黑树g_efd中移除
+        close(ev->fd);                                      //关闭链接
+	eventclear(ev);
         printf("send[fd=%d] error %s\n", fd, strerror(errno));
     }
 
@@ -197,6 +203,7 @@ void senddata(int fd, int events, void *arg)
 
 void initlistensocket(int efd, short port)
 {
+    int opt;   
     int lfd = socket(AF_INET, SOCK_STREAM, 0);
     fcntl(lfd, F_SETFL, O_NONBLOCK);                                            //将socket设为非阻塞
 
@@ -207,14 +214,16 @@ void initlistensocket(int efd, short port)
     eventadd(efd, EPOLLIN, &g_events[MAX_EVENTS]);
 
     struct sockaddr_in sin;
-	memset(&sin, 0, sizeof(sin));                                               //bzero(&sin, sizeof(sin))
-	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = INADDR_ANY;
-	sin.sin_port = htons(port);
+    memset(&sin, 0, sizeof(sin));                                               //bzero(&sin, sizeof(sin))
+    sin.sin_family = AF_INET;
+    sin.sin_addr.s_addr = INADDR_ANY;
+    sin.sin_port = htons(port);
 
-	bind(lfd, (struct sockaddr *)&sin, sizeof(sin));
+    opt = 1;
+    setsockopt(lifd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    bind(lfd, (struct sockaddr *)&sin, sizeof(sin));
 
-	listen(lfd, 20);
+    listen(lfd, 20);
 
     return ;
 }
@@ -249,9 +258,10 @@ int main(int argc, char *argv[])
             long duration = now - g_events[checkpos].last_active;       //客户端不活跃的世间
 
             if (duration >= 60) {
-                close(g_events[checkpos].fd);                           //关闭与该客户端链接
                 printf("[fd=%d] timeout\n", g_events[checkpos].fd);
                 eventdel(g_efd, &g_events[checkpos]);                   //将该客户端 从红黑树 g_efd移除
+                close(g_events[checkpos].fd);                           //关闭与该客户端链接
+		eventclear(&g_events[checkpos]);
             }
         }
 

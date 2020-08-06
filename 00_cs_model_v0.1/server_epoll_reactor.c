@@ -220,7 +220,7 @@ void initlistensocket(int efd, short port)
     sin.sin_port = htons(port);
 
     opt = 1;
-    setsockopt(lifd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    setsockopt(lfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
     bind(lfd, (struct sockaddr *)&sin, sizeof(sin));
 
     listen(lfd, 20);
@@ -234,6 +234,8 @@ int main(int argc, char *argv[])
 
     if (argc == 2)
         port = atoi(argv[1]);                           //使用用户指定端口.如未指定,用默认端口
+
+    memset(g_events, 0, sizeof(g_events));
 
     g_efd = epoll_create(MAX_EVENTS+1);                 //创建红黑树,返回给全局 g_efd 
     if (g_efd <= 0)
